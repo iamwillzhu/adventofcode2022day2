@@ -17,6 +17,14 @@ const (
 	Scissor
 )
 
+type RoundOutcome int
+
+const (
+	Win RoundOutcome = iota
+	Draw
+	Loss
+)
+
 var inputToGameMoveMap = map[string]GameMove{
 	"A": Rock,
 	"B": Paper,
@@ -26,6 +34,12 @@ var inputToGameMoveMap = map[string]GameMove{
 	"Z": Scissor,
 }
 
+var inputToRoundOutcomeMap = map[string]RoundOutcome{
+	"X": Loss,
+	"Y": Draw,
+	"Z": Win,
+}
+
 var GameMoveScoreMap = map[GameMove]int{
 	Rock:    1,
 	Paper:   2,
@@ -33,40 +47,112 @@ var GameMoveScoreMap = map[GameMove]int{
 }
 
 const (
-	Draw = 3
-	Win  = 6
-	Loss = 0
+	DrawOutcomeScore = 3
+	WinOutcomeScore  = 6
+	LossOutcomeScore = 0
 )
 
-func getGameMovesForBothPlayers(reader io.Reader) ([]GameMove, []GameMove) {
+func getPartOneGameMovesForBothPlayers(reader io.Reader) ([]GameMove, []GameMove) {
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(bufio.ScanLines)
 
-	playerOneMoves := make([]GameMove, 0)
-	playerTwoMoves := make([]GameMove, 0)
+	playerOneGameMoves := make([]GameMove, 0)
+	playerTwoGameMoves := make([]GameMove, 0)
 
 	for scanner.Scan() {
 		gameMoves := strings.Fields(scanner.Text())
 
-		playerOneMoves = append(playerOneMoves, inputToGameMoveMap[gameMoves[0]])
-		playerTwoMoves = append(playerTwoMoves, inputToGameMoveMap[gameMoves[1]])
+		playerOneGameMoves = append(playerOneGameMoves, inputToGameMoveMap[gameMoves[0]])
+		playerTwoGameMoves = append(playerTwoGameMoves, inputToGameMoveMap[gameMoves[1]])
 	}
 
-	return playerOneMoves, playerTwoMoves
+	return playerOneGameMoves, playerTwoGameMoves
+}
+
+func getPartTwoPlayerTwoGameMove(playerOneGameMove GameMove, playerTwoRoundOutcome RoundOutcome) GameMove {
+	if playerTwoRoundOutcome == Draw {
+		return playerOneGameMove
+	}
+
+	if playerTwoRoundOutcome == Win {
+		if playerOneGameMove == Rock {
+			return Paper
+		}
+		if playerOneGameMove == Paper {
+			return Scissor
+		}
+		if playerOneGameMove == Scissor {
+			return Rock
+		}
+	}
+
+	if playerOneGameMove == Rock {
+		return Scissor
+	}
+	if playerOneGameMove == Paper {
+		return Rock
+	}
+	return Paper
+}
+
+func getPartTwoGameMovesForBothPlayers(reader io.Reader) ([]GameMove, []GameMove) {
+	scanner := bufio.NewScanner(reader)
+	scanner.Split(bufio.ScanLines)
+
+	playerOneGameMoves := make([]GameMove, 0)
+	playerTwoGameMoves := make([]GameMove, 0)
+
+	for scanner.Scan() {
+		gameInputs := strings.Fields(scanner.Text())
+
+		playerOneGameMove := inputToGameMoveMap[gameInputs[0]]
+		playerTwoRoundOutcome := inputToRoundOutcomeMap[gameInputs[1]]
+		playerTwoGameMove := getPartTwoPlayerTwoGameMove(playerOneGameMove, playerTwoRoundOutcome)
+
+		playerOneGameMoves = append(playerOneGameMoves, playerOneGameMove)
+		playerTwoGameMoves = append(playerTwoGameMoves, playerTwoGameMove)
+	}
+
+	return playerOneGameMoves, playerTwoGameMoves
+}
+
+func getGameMovesForBothPlayers(reader io.Reader) (playerOneGameMoves []GameMove, playerTwoPartOneGameMoves []GameMove, playerTwoPartTwoGameMoves []GameMove) {
+	scanner := bufio.NewScanner(reader)
+	scanner.Split(bufio.ScanLines)
+
+	playerOneGameMoves = make([]GameMove, 0)
+	playerTwoPartOneGameMoves = make([]GameMove, 0)
+	playerTwoPartTwoGameMoves = make([]GameMove, 0)
+
+	for scanner.Scan() {
+		gameInputs := strings.Fields(scanner.Text())
+
+		playerOneGameMove := inputToGameMoveMap[gameInputs[0]]
+		playerTwoPartOneGameMove := inputToGameMoveMap[gameInputs[1]]
+		playerTwoRoundOutcome := inputToRoundOutcomeMap[gameInputs[1]]
+
+		playerTwoPartTwoGameMove := getPartTwoPlayerTwoGameMove(playerOneGameMove, playerTwoRoundOutcome)
+
+		playerOneGameMoves = append(playerOneGameMoves, playerOneGameMove)
+		playerTwoPartOneGameMoves = append(playerTwoPartOneGameMoves, playerTwoPartOneGameMove)
+		playerTwoPartTwoGameMoves = append(playerTwoPartTwoGameMoves, playerTwoPartTwoGameMove)
+	}
+
+	return
 }
 
 func getOutcomeOfRound(playerOneMove GameMove, playerTwoMove GameMove) int {
 	if playerOneMove == playerTwoMove {
-		return Draw
+		return DrawOutcomeScore
 	}
 
 	if playerOneMove == Scissor && playerTwoMove == Paper ||
 		playerOneMove == Paper && playerTwoMove == Rock ||
 		playerOneMove == Rock && playerTwoMove == Scissor {
-		return Loss
+		return LossOutcomeScore
 	}
 
-	return Win
+	return WinOutcomeScore
 }
 
 func main() {
@@ -76,17 +162,20 @@ func main() {
 	}
 	defer file.Close()
 
-	score := 0
+	scorePartOne := 0
+	scorePartTwo := 0
 
-	playerOneMoves, playerTwoMoves := getGameMovesForBothPlayers(bufio.NewReader(file))
+	playerOneGameMoves, playerTwoPartOneGameMoves, playerTwoPartTwoGameMoves := getGameMovesForBothPlayers(bufio.NewReader(file))
 
-	for index := range playerOneMoves {
-		playerOneMove := playerOneMoves[index]
-		playerTwoMove := playerTwoMoves[index]
+	for index := range playerOneGameMoves {
+		playerOneGameMove := playerOneGameMoves[index]
+		playerTwoPartOneGameMove := playerTwoPartOneGameMoves[index]
+		playerTwoPartTwoGameMove := playerTwoPartTwoGameMoves[index]
 
-		score += GameMoveScoreMap[playerTwoMove] + getOutcomeOfRound(playerOneMove, playerTwoMove)
+		scorePartOne += GameMoveScoreMap[playerTwoPartOneGameMove] + getOutcomeOfRound(playerOneGameMove, playerTwoPartOneGameMove)
+		scorePartTwo += GameMoveScoreMap[playerTwoPartTwoGameMove] + getOutcomeOfRound(playerOneGameMove, playerTwoPartTwoGameMove)
 	}
 
-	fmt.Printf("The score of the strategy guide is %d\n", score)
-
+	fmt.Printf("The score of the strategy guide for part 1 is %d\n", scorePartOne)
+	fmt.Printf("The score of the strategy guide for part 2 is %d\n", scorePartTwo)
 }
